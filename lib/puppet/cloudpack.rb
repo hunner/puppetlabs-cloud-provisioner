@@ -343,6 +343,16 @@ module Puppet::CloudPack
     end
 
     def add_classify_options(action)
+      action.option '--application=' do
+        required 
+        summary 'What application to assign to the node'
+        description <<-'EOT'
+          This will install a custom fact called `application` that's value is
+          the value of this parameter. The intended use is for puppet to classify
+          the node based on the value of the `application` fact.
+        EOT
+      end
+
       action.option '--enc-ssl' do
         summary 'Whether to use SSL when connecting to the ENC'
         description <<-'EOT'

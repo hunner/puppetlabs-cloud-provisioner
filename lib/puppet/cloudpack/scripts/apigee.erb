@@ -18,8 +18,6 @@ EOFYUMREPO
 
   # Install Puppet from yum.puppetlabs.com
   yum install -y puppet
-  yum install -y kmod-xfs-xen
-  yum install -y xfsprogs
 }
 
 function apt_install() {
@@ -45,7 +43,6 @@ EOFAPTREPO
   apt-get update
   # Install Puppet from Debian repositories
   apt-get -y install puppet
-  apt-get -y install xfsprogs
 }
 
 function install_puppet() {
@@ -100,7 +97,7 @@ function classify() {
 <% if options[:volumes] %>
 function mount_volumes() {
   <% options[:volumes].each do |vol| %>
-    mkfs.xfs <%= vol[:device] %>
+    mkfs.ext3 -F <%= vol[:device] %>
     mkdir -p <%= vol[:mount] %>
     mount <%= vol[:device] %> <%= vol[:mount] %>
   <% end %>

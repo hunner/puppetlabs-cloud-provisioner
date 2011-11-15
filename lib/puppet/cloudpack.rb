@@ -105,16 +105,16 @@ module Puppet::CloudPack
         summary 'The volumes to create and mount on the instance'
         description <<-EOT
           This option will create EBS volumes and mount them on the created
-          instance. Each volume is space separated in the following format:
-          '/mount/path:size:availability_zone:snapshot_id'.  The 
-          snapshot_source is optional. If given, the volume will be created
-          based on the snapshot with the id of the given snapshot_id
+          instance. Each volume is comma separated in the following format:
+          '/mount/path:size:snapshot_id'.  The snapshot_source is optional. 
+          If given, the volume will be created based on the snapshot with 
+          the id of the given snapshot_id
         EOT
 
         before_action do |action, args, options|
           options[:volumes] = options[:volumes].split(',').map do |volume|
-            device, mount, size, zone, snapshot  = volume.split(':')
-            { :mount => mount, :size => size, :zone  => zone, :snapshot => snapshot, :device => device }
+            device, mount, size, snapshot  = volume.split(':')
+            { :mount => mount, :size => size, :zone  => options[:availability_zone], :snapshot => snapshot, :device => device }
           end
         end
       end

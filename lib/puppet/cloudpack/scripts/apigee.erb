@@ -9,7 +9,7 @@ function rpm_install(){
   # Setup the yum Puppet repository
   cat >/etc/yum.repos.d/puppet.repo <<'EOFYUMREPO'
 [puppetlabs]
-name = Puppetlbas
+name = Puppetlabs
 baseurl = http://yum.puppetlabs.com/el/$releasever/products/$basearch/ 
 gpgcheck = 1
 enabled = 1

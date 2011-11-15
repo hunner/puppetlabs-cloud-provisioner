@@ -213,8 +213,20 @@ module Puppet::CloudPack
     def add_terminate_options(action)
       add_region_option(action)
       add_platform_option(action)
+
       action.option '--force', '-f' do
         summary 'Forces termination of an instance.'
+      end
+
+      action.option '--delete-all-volumes' do
+        summary 'Delete all attached EBS volumes'
+
+        description <<-EOT
+          Normally the terminate action only deletes EBS volumed that were
+          spefied by the AMI. Any EBS volumes that were attached after
+          the instance creation will not be deleted unless this parameter
+          is given
+        EOT
       end
     end
 
@@ -939,9 +951,22 @@ module Puppet::CloudPack
         # We're using myserver rather than server to prevent ruby 1.8 from
         # overwriting the server method argument
         servers.each do |myserver|
+          volumes = Array.new
+
+          if options[:delete_all_volumes]
+            volumes = myserver.volumes
+          end
+
           Puppet.notice "Destroying #{myserver.id} (#{myserver.dns_name}) ..."
           myserver.destroy()
           Puppet.notice "Destroying #{myserver.id} (#{myserver.dns_name}) ... Done"
+
+          #Has to be done after the instance is destroyed
+          volumes.each do |volume|
+            Puppet.notice "Destroying volume #{volume.id} ..."
+            Puppet::CloudPack::Utils.retry_action( :timeout => 120 ) { volume.destroy }
+            Puppet.notice "Destroying volume #{volume.id} ... Done"
+          end
         end
       elsif servers.empty?
         Puppet.warning "Could not find server with DNS name '#{server}'"

@@ -97,11 +97,11 @@ function install_facter_d_plugin() {
   mkdir -p /etc/facts.d
 }
     
+<% if options[:application] %>
 function classify() {
-  <% if options[:node_group] -%>
-    echo 'application=<%= options[:application] %>' > /etc/facts.d/application.txt
-  <% end -%>
+  echo 'application=<%= options[:application] %>' > /etc/facts.d/application.txt
 }
+<% end %>
 
 function provision_puppet() {
   if [ -f /etc/redhat-release ]; then
@@ -115,7 +115,9 @@ function provision_puppet() {
   
   install_puppet
   configure_puppet
+<% if options[:application] %>
   classify
+<% end %>
   start_puppet
   echo "Puppet installation finished!"
   exit 0

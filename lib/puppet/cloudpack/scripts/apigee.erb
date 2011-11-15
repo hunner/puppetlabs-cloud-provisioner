@@ -92,9 +92,9 @@ function start_puppet() {
 }
 
 function install_facter_d_plugin() {
-  git clone http://github.com/ripienaar/facter-facts.git  --depth 1 /tmp/facter_d
+  git clone http://github.com/ripienaar/facter-facts.git  --depth 1 <%= options[:tmp_dir] %>/facter_d
   mkdir -p `puppet agent --configprint vardir`/lib/facter/
-  cp /tmp/facter_d/facts-dot-d/facter_dot_d.rb `puppet agent --configprint vardir`/lib/facter/
+  cp <%= options[:tmp_dir] %>/facter_d/facts-dot-d/facter_dot_d.rb `puppet agent --configprint vardir`/lib/facter/
   mkdir -p /etc/facts.d
 }
     
@@ -114,7 +114,20 @@ function mount_volumes() {
 }
 <% end %>
 
-  
+<% if options[:certname] %>
+function configure_ddns() {
+  hostname <%= options[:certname] %>
+  cat > /etc/sysconfig/network << DDNSEND
+NETWORKING=yes
+HOSTNAME=its01apigee.us-ea.i.apigee.com
+NETWORKING_IPV6=no
+DDNSEND
+  curl http://<%= option[:server] %>/dist/ddns/<%= options[:certname].split('.',2)[-1] %>/ddnsupdate > <%= options[:tmp_dir] %>/ddnsupdate
+  chmod +x <%= options[:tmp_dir] %>/ddnsupdate
+  <%= options[:tmp_dir] %>/ddnsupdate <%= options[:certname].split('.',2)[0] %>
+}
+<% end %>
+
 function provision_puppet() {
   if [ -f /etc/redhat-release ]; then
     export breed='redhat'
@@ -134,6 +147,7 @@ function provision_puppet() {
 <% if options[:volumes] %>
   mount_volumes
 <% end %>
+  configure_ddns
   start_puppet
   echo "Puppet installation finished!"
   exit 0

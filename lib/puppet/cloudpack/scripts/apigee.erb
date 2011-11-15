@@ -18,7 +18,6 @@ EOFYUMREPO
 
   # Install Puppet from yum.puppetlabs.com
   yum install -y puppet
-  yum install -y git
   yum install -y xfsprogs
 }
 
@@ -45,7 +44,6 @@ EOFAPTREPO
   apt-get update
   # Install Puppet from Debian repositories
   apt-get -y install puppet
-  apt-get -y install git
   apt-get -y install xfsprogs
 }
 
@@ -91,15 +89,9 @@ function start_puppet() {
   /etc/init.d/puppet start
 }
 
-function install_facter_d_plugin() {
-  git clone http://github.com/ripienaar/facter-facts.git  --depth 1 <%= options[:tmp_dir] %>/facter_d
-  mkdir -p `puppet agent --configprint vardir`/lib/facter/
-  cp <%= options[:tmp_dir] %>/facter_d/facts-dot-d/facter_dot_d.rb `puppet agent --configprint vardir`/lib/facter/
-  mkdir -p /etc/facts.d
-}
-    
 <% if options[:application] %>
 function classify() {
+  mkdir -p /etc/facts.d
   echo 'application=<%= options[:application] %>' > /etc/facts.d/application.txt
 }
 <% end %>
@@ -137,11 +129,10 @@ function provision_puppet() {
     echo "This OS is not supported by Puppet Cloud Provisioner"
     exit 1
   fi
-  
+
   install_puppet
   configure_puppet
 <% if options[:application] %>
-  install_facter_d_plugin
   classify
 <% end %>
 <% if options[:volumes] %>

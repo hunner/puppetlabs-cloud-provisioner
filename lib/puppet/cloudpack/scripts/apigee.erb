@@ -128,8 +128,8 @@ function provision_puppet() {
   install_puppet
   configure_puppet
 <% if options[:application] %>
-  classify
   install_facter_d_plugin
+  classify
 <% end %>
 <% if options[:volumes] %>
   mount_volumes

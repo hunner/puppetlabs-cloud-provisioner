@@ -18,7 +18,8 @@ EOFYUMREPO
 
   # Install Puppet from yum.puppetlabs.com
   yum install -y puppet
-  yum install git
+  yum install -y git
+  yum install -y xfsprogs
 }
 
 function apt_install() {
@@ -45,6 +46,7 @@ EOFAPTREPO
   # Install Puppet from Debian repositories
   apt-get -y install puppet
   apt-get -y install git
+  apt-get -y install xfsprogs
 }
 
 function install_puppet() {
@@ -91,9 +93,8 @@ function start_puppet() {
 
 function install_facter_d_plugin() {
   git clone http://github.com/ripienaar/facter-facts.git  --depth 1 /tmp/facter_d
-  cd /tmp/facter_d
-  git checkout HEAD facter_dot_d.rb
-  cp facter_dot_d.rb `puppet agent --configprint vardir`/lib/facter/
+  mkdir -p `puppet agent --configprint vardir`/lib/facter/
+  cp /tmp/facter_d/facts-dot-d/facter_dot_d.rb `puppet agent --configprint vardir`/lib/facter/
   mkdir -p /etc/facts.d
 }
     
@@ -103,6 +104,17 @@ function classify() {
 }
 <% end %>
 
+<% if options[:volumes] %>
+function mount_volumes() {
+  <% options[:volumes].each do |vol| %>
+    mkfs.xfs <%= vol[:device] %>
+    mkdir -p <%= vol[:mount] %>
+    mount <%= vol[:device] %> <%= vol[:mount] %>
+  <% end %>
+}
+<% end %>
+
+  
 function provision_puppet() {
   if [ -f /etc/redhat-release ]; then
     export breed='redhat'
@@ -117,6 +129,10 @@ function provision_puppet() {
   configure_puppet
 <% if options[:application] %>
   classify
+  install_facter_d_plugin
+<% end %>
+<% if options[:volumes] %>
+  mount_volumes
 <% end %>
   start_puppet
   echo "Puppet installation finished!"

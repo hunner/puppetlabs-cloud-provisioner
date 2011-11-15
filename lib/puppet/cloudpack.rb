@@ -49,6 +49,25 @@ module Puppet::CloudPack
       end
     end
 
+    def add_zone_option(action)
+      action.option '--availability-zone=' do 
+        summary 'Availailability zone for the instance or storage volume.'
+
+      end
+    end
+
+    def add_create_volume_options(action)
+      add_zone_option(action)
+
+      action.option '--size=', '-s=' do
+        summary 'The size in GB to create the volume'
+      end
+
+      action.option '--snapshot=' do
+        summary 'The snapshot to base the volume creation from'
+      end
+    end
+
     def add_platform_option(action)
       action.option '--platform=' do
         summary 'Platform used to create machine instance (only supports AWS).'
@@ -80,6 +99,25 @@ module Puppet::CloudPack
     def add_create_options(action)
       add_platform_option(action)
       add_region_option(action)
+      add_zone_option(action)
+
+      action.option '--volumes=', '-v=' do
+        summary 'The volumes to create and mount on the instance'
+        description <<-EOT
+          This option will create EBS volumes and mount them on the created
+          instance. Each volume is space separated in the following format:
+          '/mount/path:size:availability_zone:snapshot_id'.  The 
+          snapshot_source is optional. If given, the volume will be created
+          based on the snapshot with the id of the given snapshot_id
+        EOT
+
+        before_action do |action, args, options|
+          options[:volumes] = options[:volumes].split(',').map do |volume|
+            device, mount, size, zone, snapshot  = volume.split(':')
+            { :mount => mount, :size => size, :zone  => zone, :snapshot => snapshot, :device => device }
+          end
+        end
+      end
 
       action.option '--image=', '-i=' do
         summary 'AMI to use when creating the instance.'
@@ -523,10 +561,11 @@ module Puppet::CloudPack
       # TODO: Validate that the security groups permit SSH access from here.
       # TODO: Can this throw errors?
       server     = create_server(connection.servers,
-        :image_id   => options[:image],
-        :key_name   => options[:keyname],
-        :groups     => options[:group],
-        :flavor_id  => options[:type]
+        :image_id          => options[:image],
+        :key_name          => options[:keyname],
+        :groups            => options[:group],
+        :flavor_id         => options[:type],
+        :availability_zone => options[:availability_zone]
       )
 
       # This is the earliest point we have knowledge of the instance ID
@@ -557,9 +596,23 @@ module Puppet::CloudPack
         return nil
       end
 
+      
       # This is the earliest point we have knowledge of the DNS name
       Puppet.notice("Server #{server.id} public dns name: #{server.dns_name}")
 
+      #Don't know where else to store this
+      options[:volumes].map { |vol| vol[:device] }
+
+      unless options[:volumes].nil?
+        options[:volumes].each do |volume|
+          Puppet.notice("Creating volume for mount #{volume[:mount]} of size #{volume[:size]}")
+          vol_attributes = create_volume({ :size => volume[:size], :snapshot => volume[:snapshot], :availability_zone => volume[:zone] }, connection)
+
+          Puppet.debug("Attaching volume #{vol_attributes['volumeId']}")
+          connection.attach_volume(server.id, vol_attributes['volumeId'], volume[:device])
+        end
+      end
+      
       if options[:_destroy_server_at_exit] == :create
         options.delete(:_destroy_server_at_exit)
       end
@@ -931,6 +984,23 @@ module Puppet::CloudPack
       Puppet.notice('Creating tags for instance ... Done')
     end
 
+    def create_volume(options, connection = nil)
+      options = merge_default_options(options)
+      Puppet.notice('Creating EBS volume ...')
+
+      if connection.nil?
+        connection = create_connection(options)
+      end
+
+      unless options[:snapshot].nil?
+        volume = connection.create_volume(options[:availability_zone], options[:size], options[:snapshot])
+      else 
+        volume = connection.create_volume(options[:availability_zone], options[:size])
+      end
+
+      volume.body
+    end
+        
     def payload_type(payload)
       uri = begin
         URI.parse(payload)
@@ -973,5 +1043,6 @@ module Puppet::CloudPack
       # Return the parsed JSON response
       handle_json_response(response, action, expected_code)
     end
+
   end
 end
